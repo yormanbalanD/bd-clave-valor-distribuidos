@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package conexion;
+
+option go_package = "go_proto/conexion";
+
+service bd {
+    rpc Insertar (Insertar) returns (Respuesta) {}
+
+    message Insertar {
+        string clave = 1;
+        string valor = 2;
+    }
+
+    message Respuesta {
+        bool estado = 1;
+        string mensaje = 2;
+    }
+}
