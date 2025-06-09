@@ -2,18 +2,41 @@ syntax = "proto3";
 
 package conexion;
 
-option go_package = "go_proto/conexion";
+option go_package = "github.com/yormanbalanD/bd-clave-valor-distribuidos/proto";
 
-service bd {
-    rpc Insertar (Insertar) returns (Respuesta) {}
+service BD {
+    rpc set (Insertar) returns (RespuestaSet);
+    rpc get (Consultar) returns (RespuestaGet);
+    rpc getPrefix (Consultar) returns (RespuestaGetPrefix);
+}
 
-    message Insertar {
-        string clave = 1;
-        string valor = 2;
-    }
+message RespuestaGetPrefix {
+    bool estado = 1;
+    string mensaje = 2;
+    repeated Objeto objetos = 3;
+}
 
-    message Respuesta {
-        bool estado = 1;
-        string mensaje = 2;
-    }
+message RespuestaGet {
+    bool estado = 1;
+    string mensaje = 2;
+    Objeto objeto = 3;
+}
+
+message Objeto {
+    string clave = 1;
+    string valor = 2;
+}
+
+message Consultar {
+    string clave = 1;
+}
+
+message Insertar {
+    string clave = 1;
+    string valor = 2;
+}
+
+message RespuestaSet {
+    bool estado = 1;
+    string mensaje = 2;
 }

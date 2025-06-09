@@ -1,0 +1,34 @@
+El planteamiento de este proyecto se basa en algo sencillo, una empresa quiere guardar el registro de sus clientes en un servicio Clave Valor el 
+cual tendremos que diseñar nosotros. Para ello debe de existir 2 binarios, el servidor y el cliente, ambos deben de poder comunicarse entre sí 
+mediante un protocolo de comunicación, en este caso se utilizará gRPC, el servidor debe de poder recibir las peticiones de los clientes y 
+devolver los datos que se le pidan, el cliente debe de poder enviar las peticiones al servidor y recibir los datos que se le respondan.
+
+Los datos que se almacenaran en el servicio clave-valor sera la lista de nombres de clientes, por lo tanto lo que se almacenara en la tabla 
+seran solo strings. Los clientes tienen nombres extraños asi que sus nombre pueden tener longitudes de 512B, 4KB, 512KB, 1MB y 4MB.
+
+La clave de cada cliente es de 128 bits.
+
+API. Solo debe admitir las siguientes tres operaciones:
+    set(string key, string value): establece el valor de la clave dada;
+    get(string key): devuelve el valor de la clave dada;
+    getPrefix(string prefixKey): devuelve una lista de valores cuyas claves empiezan por prefixKey.
+
+
+
+Las claves se componen de 128 bits o lo que serian 16 bytes. Algo a tener en cuenta es que se necesita saber el tamaño de valor
+
+El tamaño de los valores estaran dentro de la cadena de bits, especificamente en el primer byte.
+Dependiendo de la posicion del bit en 1 se determinara el tamaño del valor, la lista seria la siguiente
+
+10000000 -> 512B
+01000000 -> 4KB
+00100000 -> 512KB
+00010000 -> 1MB
+00001000 -> 4MB
+
+Los otros 3 bits deben de ser cero. aun no tenemos uso para ellos y no creo que les demos uso
+
+
+Para guardar los datos de la tabla en disco se usaran 2 archivos, uno es el archivo de claves y el otro es el archivo de valores.
+
+El archivo de las claves contendra las claves y la direccion en memoria del valor, el archivo de valores contendra el valor en sí mismo.
