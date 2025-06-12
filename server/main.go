@@ -11,6 +11,7 @@ import (
 	"log"
 	"net"
 	"os"
+	"strconv"
 	"strings"
 
 	pb "github.com/yormanbalanD/bd-clave-valor-distribuidos/proto"
@@ -99,6 +100,7 @@ func searchKey(key string) (string, error) {
 			return "", errors.New("error al leer el archivo")
 		}
 
+		println(string(temp.Clave[:16]) + "   " + strconv.FormatInt(temp.Direccion, 10) + "   " + strconv.FormatInt(int64(temp.Tamaño), 10))
 		claveString := strings.TrimRight(string(temp.Clave[:16]), "\x00")
 		if claveString == key {
 			claveEncontrada = true
@@ -170,15 +172,15 @@ func writeValues(key string, value string) error {
 	var tamaño int32
 	var lenValue = len(value)
 
-	if lenValue < B512 {
+	if lenValue <= B512 {
 		tamaño = B512
-	} else if lenValue < KB4 {
+	} else if lenValue <= KB4 {
 		tamaño = KB4
-	} else if lenValue < KB512 {
+	} else if lenValue <= KB512 {
 		tamaño = KB512
-	} else if lenValue < MB1 {
+	} else if lenValue <= MB1 {
 		tamaño = MB1
-	} else if lenValue < MB4 {
+	} else if lenValue <= MB4 {
 		tamaño = MB4
 	} else {
 		fmt.Println("El tamaño de la cadena es mayor a 4 MB")
@@ -236,15 +238,23 @@ func (s *server) GetPrefix(ctx context.Context, in *pb.Consultar) (*pb.Respuesta
 }
 
 func (s *server) Get(ctx context.Context, in *pb.Consultar) (*pb.RespuestaGet, error) {
-	return nil, nil
+	value, _ := searchKey(in.Clave)
+
+	return &pb.RespuestaGet{Estado: true, Mensaje: "OK", Objeto: &pb.Objeto{Clave: in.Clave, Valor: value}}, nil
 }
 
 func (s *server) Set(ctx context.Context, in *pb.Insertar) (*pb.RespuestaSet, error) {
-	return nil, nil
+	err := writeValues(in.Clave, in.Valor)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &pb.RespuestaSet{Estado: true, Mensaje: "OK"}, nil
 }
 
 func main() {
-	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", *port))
+	lis, err := net.Listen("tcp", ":5050")
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}

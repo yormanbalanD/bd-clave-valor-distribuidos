@@ -1,86 +1,61 @@
 import grpc
-import client_pb2
-import client_pb2_grpc
-import utils
+# Assuming your proto file is named 'bd_service.proto'
+# and generates bd_service_pb2.py and bd_service_pb2_grpc.py
+import conexion_pb2 as pb
+import conexion_pb2_grpc as pb_grpc
+import utils # Make sure 'utils' is relevant if you need it
 
 class KeyValueClient:
-    def __init__(self, server_address='localhost:5050'):
-        """
-        Inicializa el cliente gRPC.
-
-        Args:
-            server_address (str): La dirección del servidor gRPC.
-        """
-        print(f"Conectando al servidor en: {server_address}")  # Imprime la dirección del servidor
-        self.channel = grpc.insecure_channel(server_address)  # Crea un canal de comunicación inseguro
-        self.stub = client_pb2_grpc.KeyValueStoreStub(self.channel)  # Crea un stub (cliente) para el servicio
-        print("Cliente gRPC inicializado.")  # Imprime un mensaje de confirmación
+    def __init__(self, server_address='localhost:5050'): # Ensure this matches your Go server's port (50051 based on your main.go)
+        print(f"Conectando al servidor en: {server_address}")
+        self.channel = grpc.insecure_channel(server_address)
+        # Use the correct service stub name: BDStub
+        self.stub = pb_grpc.BDStub(self.channel)
+        print("Cliente gRPC inicializado.")
 
     def set(self, key, value):
-        """
-        Realiza una llamada RPC al servidor para establecer un valor para una clave.
-
-        Args:
-            key (str): La clave a establecer.
-            value (bytes): El valor a asociar con la clave.
-
-        Returns:
-            tuple: Una tupla que contiene el estado (True/False) y un mensaje.
-        """
-        print(f"Intentando establecer la clave: {key}")  # Imprime la clave que se va a establecer
-        request = client_pb2.SetRequest(key=key, value=value)  # Crea una solicitud SetRequest
+        print(f"Intentando establecer la clave: {key}")
+        # Use the correct request message name: Insertar
+        request = pb.Insertar(clave=key, valor=value)
         try:
-            response = self.stub.Set(request)  # Llama al método Set en el servidor
-            print(f"Respuesta del servidor: Status = {response.status}, Message = {response.message}")  # Imprime la respuesta del servidor
-            return response.status, response.message  # Devuelve el estado y el mensaje
+            # Call the correct method name: Set (PascalCase as per gRPC convention)
+            response = self.stub.set(request)
+            print(f"Respuesta del servidor: Status = {response.estado}, Message = {response.mensaje}") # Update field names
+            return response.estado, response.mensaje
         except grpc.RpcError as e:
-            print(f"Error gRPC al establecer la clave: {e}")  # Imprime el error gRPC
-            return False, str(e)  # Devuelve False y el mensaje de error
+            print(f"Error gRPC al establecer la clave: {e}")
+            return False, str(e)
 
     def get(self, key):
-        """
-        Realiza una llamada RPC al servidor para obtener el valor asociado con una clave.
-
-        Args:
-            key (str): La clave a buscar.
-
-        Returns:
-            tuple: Una tupla que contiene un booleano (True si se encontró la clave, False si no) y el valor (si se encontró).
-        """
-        print(f"Intentando obtener el valor para la clave: {key}")  # Imprime la clave que se va a buscar
-        request = client_pb2.GetRequest(key=key)  # Crea una solicitud GetRequest
+        print(f"Intentando obtener el valor para la clave: {key}")
+        # Use the correct request message name: Consultar
+        request = pb.Consultar(clave=key)
         try:
-            response = self.stub.Get(request)  # Llama al método Get en el servidor
-            print(f"Respuesta del servidor: Found = {response.found}")  # Imprime si la clave fue encontrada
-            return response.found, response.value  # Devuelve True/False y el valor
+            # Call the correct method name: Get
+            response = self.stub.get(request)
+            # Update field names based on your RespuestaGet message
+            print(f"Respuesta del servidor: Estado = {response.estado}, Mensaje = {response.mensaje}")
+            # You might return response.objeto.valor if it exists
+            return response.estado, response.objeto.valor if response.estado else response.mensaje
         except grpc.RpcError as e:
-            print(f"Error gRPC al obtener la clave: {e}")  # Imprime el error gRPC
-            return False, str(e)  # Devuelve False y el mensaje de error
+            print(f"Error gRPC al obtener la clave: {e}")
+            return False, str(e)
 
     def get_prefix(self, prefix):
-        """
-        Realiza una llamada RPC al servidor para obtener una lista de valores cuyas claves comienzan con un prefijo.
-
-        Args:
-            prefix (str): El prefijo a buscar.
-
-        Returns:
-            list: Una lista de valores que coinciden con el prefijo.
-        """
-        print(f"Intentando obtener valores con el prefijo: {prefix}")  # Imprime el prefijo que se va a buscar
-        request = client_pb2.GetPrefixRequest(prefix=prefix)  # Crea una solicitud GetPrefixRequest
+        print(f"Intentando obtener valores con el prefijo: {prefix}")
+        # Use the correct request message name: Consultar for GetPrefix (if that's what your proto means)
+        # Your proto has: rpc getPrefix (Consultar)
+        request = pb.Consultar(clave=prefix) # Assuming 'clave' is used for prefix
         try:
-            response = self.stub.GetPrefix(request)  # Llama al método GetPrefix en el servidor
-            print(f"Respuesta del servidor: Values = {response.values}")  # Imprime los valores encontrados
-            return response.values  # Devuelve la lista de valores
+            # Call the correct method name: GetPrefix
+            response = self.stub.getPrefix(request)
+            print(f"Respuesta del servidor: Estado = {response.estado}, Mensaje = {response.mensaje}, Objetos = {response.objetos}")
+            return response.estado, response.objetos # Return state and list of objects
         except grpc.RpcError as e:
-            print(f"Error gRPC al obtener el prefijo: {e}")  # Imprime el error gRPC
-            return None, str(e)  # Devuelve None y el mensaje de error
+            print(f"Error gRPC al obtener el prefijo: {e}")
+            return False, str(e)
 
     def close(self):
-        """
-        Cierra el canal de comunicación con el servidor.
-        """
-        print("Cerrando la conexión con el servidor.")  # Imprime un mensaje de cierre
-        self.channel.close()  # Cierra el canal
-        print("Conexión cerrada.")  # Imprime un mensaje de confirmación
+        print("Cerrando la conexión con el servidor.")
+        self.channel.close()
+        print("Conexión cerrada.")

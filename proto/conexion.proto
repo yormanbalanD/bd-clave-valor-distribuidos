@@ -3,6 +3,7 @@ syntax = "proto3";
 package conexion;
 
 option go_package = "github.com/yormanbalanD/bd-clave-valor-distribuidos/proto";
+option py_package = "proto";
 
 service BD {
     rpc set (Insertar) returns (RespuestaSet);

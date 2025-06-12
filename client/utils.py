@@ -1,5 +1,6 @@
 import os
 import random
+import string
 
 def generate_random_key(length=16):
     """
@@ -25,6 +26,8 @@ def generate_random_value(size_bytes):
     Returns:
         bytes: Una cadena de bytes aleatorios.
     """
-    value = os.urandom(size_bytes)  # Genera bytes aleatorios
+    
+    characters = string.ascii_letters + string.digits + string.punctuation + ' '
+    random_string = ''.join(random.choice(characters) for _ in range(size_bytes))
     print(f"Valor generado de tamaño: {size_bytes} bytes")  # Imprime el tamaño del valor generado
-    return value
+    return random_string
