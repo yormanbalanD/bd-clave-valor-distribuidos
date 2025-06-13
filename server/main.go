@@ -13,6 +13,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	pb "github.com/yormanbalanD/bd-clave-valor-distribuidos/proto"
@@ -53,6 +54,10 @@ const (
 )
 
 var tablaHash = make(map[string]DatosDiccionario)
+var tablaHashMutex sync.RWMutex
+
+var keysFileMutex sync.Mutex
+var valuesFileMutex sync.Mutex
 
 func getValue(pos int64, tamaño int32) (string, error) {
 	var fileValues, err = os.OpenFile("./db/values.db", os.O_RDWR|os.O_CREATE, 0644)
@@ -64,16 +69,31 @@ func getValue(pos int64, tamaño int32) (string, error) {
 	defer fileValues.Close()
 
 	var buf = make([]byte, tamaño)
-	fileValues.Seek(pos, io.SeekStart)
-
-	_, err = fileValues.Read(buf)
-
+	_, err = fileValues.Seek(pos, io.SeekStart) // Use _ for ignored return value
 	if err != nil {
-		fmt.Println("Error al leer el archivo:", err)
-		return "", errors.New("error al leer el archivo")
+		fmt.Println("Error al posicionar el archivo Values para lectura:", err)
+		return "", errors.New("error al posicionar el archivo Values para lectura")
 	}
 
-	return string(buf), nil
+	n, err := fileValues.Read(buf)
+	if err != nil {
+		// Specific check for EOF when reading less than expected.
+		// If n < tamaño AND err == io.EOF, it means the record is incomplete.
+		if err == io.EOF && n < int(tamaño) {
+			fmt.Printf("Error al leer el archivo Values: EOF inesperado, se leyeron %d de %d bytes\n", n, tamaño)
+			return "", fmt.Errorf("error al leer el archivo Values: registro incompleto en pos %d", pos)
+		}
+		fmt.Println("Error al leer el archivo Values:", err)
+		return "", errors.New("error al leer el archivo Values")
+	}
+	if n < int(tamaño) {
+		// This case means Read didn't return EOF but also didn't fill the buffer.
+		// This should theoretically not happen with os.File.Read on valid files,
+		// but it's good for robustness.
+		fmt.Printf("Advertencia: Se leyeron menos bytes de lo esperado (%d de %d) del archivo Values en pos %d\n", n, tamaño, pos)
+	}
+
+	return string(bytes.TrimRight(buf, "\x00")), nil
 }
 
 func searchKey(key string, where int8) (string, error) {
@@ -87,30 +107,41 @@ func searchKey(key string, where int8) (string, error) {
 		defer fileKeys.Close()
 
 		var buf = make([]byte, InfClaveSize)
-		fileKeys.Seek(0, io.SeekStart)
+		_, err = fileKeys.Seek(0, io.SeekStart)
+		if err != nil {
+			fmt.Println("Error al posicionar el archivo Keys:", err)
+			return "", errors.New("error al posicionar el archivo Keys")
+		}
 
 		var clave InfClave
 		claveEncontrada := false
 
 		for {
-			_, err := fileKeys.Read(buf)
-
+			n, err := fileKeys.Read(buf)
 			if err != nil {
 				if err == io.EOF {
-					fmt.Println("Se ha leido el último elemento del archivo")
-					break
+					// fmt.Println("Se ha leido el último elemento del archivo Keys")
+					break // End of file
 				}
-				fmt.Println("Error al leer el archivo:", err)
-				return "", errors.New("error al leer el archivo")
+				// If n < InfClaveSize and err is not EOF, it might be a partial record due to corruption
+				if n > 0 && n < InfClaveSize {
+					fmt.Printf("Error al leer el archivo Keys: registro incompleto, se leyeron %d de %d bytes\n", n, InfClaveSize)
+					return "", fmt.Errorf("error al leer el archivo Keys: registro incompleto")
+				}
+				fmt.Println("Error al leer el archivo Keys:", err)
+				return "", errors.New("error al leer el archivo Keys")
+			}
+			if n < InfClaveSize { // Should not happen unless EOF is also returned
+				fmt.Printf("Advertencia: Se leyeron menos bytes de lo esperado (%d de %d) del archivo Keys\n", n, InfClaveSize)
+				continue // Skip this potentially corrupted record
 			}
 
 			var temp InfClave
 			reader := bytes.NewReader(buf)
 			err = binary.Read(reader, binary.LittleEndian, &temp)
-
 			if err != nil {
-				fmt.Println("Error al leer el archivo:", err)
-				return "", errors.New("error al leer el archivo")
+				fmt.Println("Error al deserializar InfClave:", err)
+				return "", errors.New("error al deserializar InfClave")
 			}
 
 			println(string(temp.Clave[:16]) + "   " + strconv.FormatInt(temp.Direccion, 10) + "   " + strconv.FormatInt(int64(temp.Tamaño), 10))
@@ -129,18 +160,24 @@ func searchKey(key string, where int8) (string, error) {
 		valor, err := getValue(clave.Direccion, clave.Tamaño)
 
 		if err != nil {
-			fmt.Println("Error al leer el archivo:", err)
-			return "", errors.New("error al leer el archivo")
+			fmt.Println("Error al obtener valor desde values.db:", err)
+			return "", errors.New("error al obtener valor desde values.db")
 		}
 
 		return valor, nil
 	}
 
 	if where == WHERE_HAST_TABLE {
+		tablaHashMutex.RLock()
+		// Ensure the lock is released when the function exits (or when read is done)
+		defer tablaHashMutex.RUnlock()
+
 		value, exist := tablaHash[key]
 		if !exist {
 			return "", errors.New("clave no encontrada")
 		}
+
+		println("Key: " + key + " Valor: " + value.Valor)
 
 		return value.Valor, nil
 	}
@@ -159,29 +196,40 @@ func searchKeyPrefix(key string, where int8) ([]*pb.Objeto, error) {
 		defer fileKeys.Close()
 
 		var buf = make([]byte, InfClaveSize)
-		fileKeys.Seek(0, io.SeekStart)
+		_, err = fileKeys.Seek(0, io.SeekStart)
+		if err != nil {
+			fmt.Println("Error al posicionar el archivo Keys:", err)
+			return []*pb.Objeto{}, errors.New("error al posicionar el archivo Keys")
+		}
 
 		var claves []InfClave
 
 		for {
-			_, err := fileKeys.Read(buf)
-
+			n, err := fileKeys.Read(buf)
 			if err != nil {
 				if err == io.EOF {
-					fmt.Println("Se ha leido el último elemento del archivo")
+					// fmt.Println("Se ha leido el último elemento del archivo Keys")
 					break
 				}
-				fmt.Println("Error al leer el archivo:", err)
-				return []*pb.Objeto{}, errors.New("error al leer el archivo")
+				if n > 0 && n < InfClaveSize {
+					fmt.Printf("Error al leer el archivo Keys: registro incompleto, se leyeron %d de %d bytes\n", n, InfClaveSize)
+					// Decide how to handle partial records. For prefix search, we might skip.
+					continue
+				}
+				fmt.Println("Error al leer el archivo Keys:", err)
+				return []*pb.Objeto{}, errors.New("error al leer el archivo Keys")
+			}
+			if n < InfClaveSize { // Should not happen unless EOF is also returned
+				fmt.Printf("Advertencia: Se leyeron menos bytes de lo esperado (%d de %d) del archivo Keys\n", n, InfClaveSize)
+				continue // Skip this potentially corrupted record
 			}
 
 			var temp InfClave
 			reader := bytes.NewReader(buf)
 			err = binary.Read(reader, binary.LittleEndian, &temp)
-
 			if err != nil {
-				fmt.Println("Error al leer el archivo:", err)
-				return []*pb.Objeto{}, errors.New("error al leer el archivo")
+				fmt.Println("Error al deserializar InfClave:", err)
+				continue // Skip this record if it's malformed
 			}
 
 			claveString := strings.TrimRight(string(temp.Clave[:16]), "\x00")
@@ -211,6 +259,10 @@ func searchKeyPrefix(key string, where int8) ([]*pb.Objeto, error) {
 	if where == WHERE_HAST_TABLE {
 		var objetos []*pb.Objeto
 
+		tablaHashMutex.RLock()
+		// Ensure the lock is released when the function exits (or when read is done)
+		defer tablaHashMutex.RUnlock()
+
 		for _, clave := range tablaHash {
 			if strings.HasPrefix(clave.Clave, key) {
 				objeto := &pb.Objeto{Clave: clave.Clave, Valor: clave.Valor}
@@ -227,6 +279,9 @@ func searchKeyPrefix(key string, where int8) ([]*pb.Objeto, error) {
 }
 
 func writeKeys(key string, posicion int64, tamaño int32) (int64, error) {
+	keysFileMutex.Lock() // Acquire lock for keys.db file writes
+	defer keysFileMutex.Unlock()
+
 	var fileKeys, err = os.OpenFile("./db/keys.db", os.O_RDWR|os.O_CREATE, 0644)
 	if err != nil {
 		fmt.Println("Error al abrir/crear el archivo Keys de la DB:", err)
@@ -234,18 +289,30 @@ func writeKeys(key string, posicion int64, tamaño int32) (int64, error) {
 	}
 	defer fileKeys.Close() // Asegura que el archivo se cierre
 
-	tableValue, exist := tablaHash[key]
 	var pos int64
 
-	if !exist {
-		pos, _ = fileKeys.Seek(0, io.SeekEnd)
+	// Critical section: determine position and mark it
+	tablaHashMutex.RLock() // Read lock to check if key exists in hash table
+	tableValue, exist := tablaHash[key]
+	tablaHashMutex.RUnlock()
 
+	if exist {
+		pos = tableValue.PosicionKey // Key exists, overwrite at its original position
 	} else {
-		pos, _ = fileKeys.Seek(tableValue.PosicionKey, io.SeekStart)
+		pos, err = fileKeys.Seek(0, io.SeekEnd) // New key, append to end
+		if err != nil {
+			fmt.Println("Error al posicionar el archivo Keys al final:", err)
+			return -1, errors.New("error al posicionar el archivo Keys al final")
+		}
+	}
+
+	_, err = fileKeys.Seek(pos, io.SeekStart)
+	if err != nil {
+		fmt.Println("Error al posicionar el archivo Keys para escritura:", err)
+		return -1, errors.New("error al posicionar el archivo Keys para escritura")
 	}
 
 	var buf bytes.Buffer
-
 	var temp InfClave
 
 	copy(temp.Clave[:], []byte(key))
@@ -254,23 +321,26 @@ func writeKeys(key string, posicion int64, tamaño int32) (int64, error) {
 
 	err = binary.Write(&buf, binary.LittleEndian, temp)
 
+	err = binary.Write(&buf, binary.LittleEndian, temp)
 	if err != nil {
-		fmt.Println("Error al escribir en el archivo:", err)
+		fmt.Println("Error al serializar InfClave en buffer:", err)
 		return -1, err
 	}
 
-	n, err := fileKeys.Write(buf.Bytes())
+	_, err = fileKeys.Write(buf.Bytes())
 	if err != nil {
-		fmt.Println("Error al escribir en el archivo:", err)
-		return -1, err
+		fmt.Println("Error al escribir en el archivo keys.db:", err)
+		return -1, errors.New("error al escribir en el archivo keys.db")
 	}
 
-	fmt.Printf("Se escribieron %d bytes en el final del archivo.\n", n)
-
+	// fmt.Printf("Se escribieron %d bytes en keys.db en la posición %d.\n", n, pos)
 	return pos, nil
 }
 
 func writeValues(key string, value string) error {
+
+	valuesFileMutex.Lock() // Acquire lock for values.db file writes
+	defer valuesFileMutex.Unlock()
 	var fileValues, err = os.OpenFile("./db/values.db", os.O_RDWR|os.O_CREATE, 0644)
 	if err != nil {
 		fmt.Println("Error al abrir/crear el archivo Values de la DB:", err)
@@ -296,30 +366,60 @@ func writeValues(key string, value string) error {
 		return errors.New("el tamaño de la cadena es mayor a 4 MB")
 	}
 
-	pos, _ := fileValues.Seek(0, io.SeekEnd)
+	var pos int64
+
+	// Critical section: determine position and mark it
+	tablaHashMutex.RLock() // Read lock to check if key exists in hash table
+	existingEntry, exist := tablaHash[key]
+	tablaHashMutex.RUnlock()
+
+	if exist {
+		pos = existingEntry.PosicionValue // Key exists, overwrite at its original position
+	} else {
+		pos, err = fileValues.Seek(0, io.SeekEnd) // New value, append to end
+		if err != nil {
+			fmt.Println("Error al posicionar el archivo Values al final:", err)
+			return errors.New("error al posicionar el archivo Values al final")
+		}
+	}
+
+	if _, isBlocked := bloqueoValues[pos]; isBlocked {
+		bloqueoValuesMutex.Unlock() // IMPORTANT: Unlock `bloqueoValuesMutex` before returning this error
+		return fmt.Errorf("bloqueo en la posición %d para clave '%s'", pos, key)
+	}
+	bloqueoValues[pos] = key // Mark this position as being handled
+	bloqueoValuesMutex.Unlock()
+
+	defer func(p int64) {
+		bloqueoValuesMutex.Lock() // Re-acquire lock to modify the map
+		delete(bloqueoValues, p)
+		bloqueoValuesMutex.Unlock()
+		// println("bloqueoValuesMutex - Position", p, "unblocked.")
+	}(pos)
+
+	_, err = fileValues.Seek(pos, io.SeekStart)
+	if err != nil {
+		fmt.Println("Error al posicionar el archivo Values para escritura:", err)
+		return errors.New("error al posicionar el archivo Values para escritura")
+	}
+
+	bloqueoValuesMutex.Lock()
+	if _, exist := bloqueoValues[pos]; exist {
+		bloqueoValuesMutex.Unlock()
+		return errors.New("bloqueo en la posición " + strconv.FormatInt(int64(pos), 10))
+	}
+
+	bloqueoValues[pos] = key
+	bloqueoValuesMutex.Unlock()
 
 	var buf bytes.Buffer
 
-	if tamaño == B512 {
-		var temp [B512]byte
-		copy(temp[:], []byte(value))
-		err = binary.Write(&buf, binary.LittleEndian, temp)
-	} else if tamaño == KB4 {
-		var temp [KB4]byte
-		copy(temp[:], []byte(value))
-		err = binary.Write(&buf, binary.LittleEndian, temp)
-	} else if tamaño == KB512 {
-		var temp [KB512]byte
-		copy(temp[:], []byte(value))
-		err = binary.Write(&buf, binary.LittleEndian, temp)
-	} else if tamaño == MB1 {
-		var temp [MB1]byte
-		copy(temp[:], []byte(value))
-		err = binary.Write(&buf, binary.LittleEndian, temp)
-	} else if tamaño == MB4 {
-		var temp [MB4]byte
-		copy(temp[:], []byte(value))
-		err = binary.Write(&buf, binary.LittleEndian, temp)
+	valueBytes := make([]byte, tamaño)
+	copy(valueBytes, []byte(value))
+	err = binary.Write(&buf, binary.LittleEndian, valueBytes) // Write the padded bytes
+	if err != nil {
+		fmt.Println("Error al serializar el valor en buffer:", err)
+		return err
 	}
 
 	posKey, err := writeKeys(key, pos, tamaño)
@@ -330,13 +430,16 @@ func writeValues(key string, value string) error {
 
 	n, err := fileValues.Write(buf.Bytes())
 	if err != nil {
-		fmt.Println("Error al escribir en el archivo:", err)
-		return errors.New("error al escribir en el archivo")
+		fmt.Println("Error al escribir en el archivo values.db:", err)
+		return errors.New("error al escribir en el archivo values.db")
 	}
 
-	println("Clave: %s Valor: %s PosicionValue: %d PosicionKey: %d Tamaño: %d", key, value, pos, posKey, tamaño)
+	tablaHashMutex.Lock() // Acquire write lock for the hash table
+	defer tablaHashMutex.Unlock()
+
+	// println("Clave: %s Valor: %s PosicionValue: %d PosicionKey: %d Tamaño: %d", key, value, pos, posKey, tamaño)
 	tablaHash[key] = DatosDiccionario{Clave: key, Valor: value, PosicionValue: pos, Tamaño: tamaño, PosicionKey: posKey}
-	fmt.Printf("Se escribieron %d bytes en el final del archivo.\n", n)
+	fmt.Printf("Se escribieron %d bytes en el final del archivo Values.\n", n)
 
 	return nil
 }
@@ -353,39 +456,74 @@ func getAllValuesToDict() error {
 	fmt.Println("Archivo Keys abierto/creado exitosamente para la lectura.")
 
 	var buf = make([]byte, InfClaveSize)
-	fileKeys.Seek(0, io.SeekStart)
+	_, err = fileKeys.Seek(0, io.SeekStart)
+	if err != nil {
+		fmt.Println("Error al posicionar el archivo Keys para carga:", err)
+		return errors.New("error al posicionar el archivo Keys para carga")
+	}
+
+	// Create a temporary map to store data before acquiring the lock
+	tempMap := make(map[string]DatosDiccionario)
 
 	for {
-		pos, _ := fileKeys.Seek(0, io.SeekCurrent)
-		_, err := fileKeys.Read(buf)
+		posKey, _ := fileKeys.Seek(0, io.SeekCurrent) // Get current position before read
+		n, err := fileKeys.Read(buf)
 
 		if err != nil {
 			if err == io.EOF {
-				fmt.Println("Se ha leido el último elemento del archivo")
+				// fmt.Println("Se ha leido el último elemento del archivo Keys durante la carga.")
 				break
 			}
-			fmt.Println("Error al leer el archivo:", err)
-			return errors.New("error al leer el archivo")
+			// Handle partial reads as potential corruption
+			if n > 0 && n < InfClaveSize {
+				fmt.Printf("Error al leer el archivo Keys durante la carga: registro incompleto, se leyeron %d de %d bytes. Saltando.\n", n, InfClaveSize)
+				// Seek past the incomplete record to try to read the next one
+				_, seekErr := fileKeys.Seek(int64(InfClaveSize-n), io.SeekCurrent)
+				if seekErr != nil {
+					fmt.Println("Fatal: No se pudo saltar el registro incompleto, abortando carga.")
+					return fmt.Errorf("error irrecuperable al leer keys.db: %v", err)
+				}
+				continue // Skip this corrupted record
+			}
+			fmt.Println("Error al leer el archivo Keys durante la carga:", err)
+			return errors.New("error al leer el archivo Keys durante la carga")
+		}
+		if n < InfClaveSize { // This indicates an unexpected short read without EOF
+			fmt.Printf("Advertencia: Se leyeron menos bytes de lo esperado (%d de %d) del archivo Keys durante la carga. Saltando.\n", n, InfClaveSize)
+			continue
 		}
 
 		var temp InfClave
 		reader := bytes.NewReader(buf)
 		err = binary.Read(reader, binary.LittleEndian, &temp)
-
 		if err != nil {
-			fmt.Println("Error al leer el archivo:", err)
-			return errors.New("error al leer el archivo")
+			fmt.Println("Error al deserializar InfClave durante la carga:", err)
+			continue // Skip this record if it's malformed
 		}
 
-		claveString := strings.TrimRight(string(temp.Clave[:16]), "\x00")
+		claveString := strings.TrimRight(string(temp.Clave[:]), "\x00")
 		valor, err := getValue(temp.Direccion, temp.Tamaño)
+		if err != nil {
+			fmt.Printf("Error al leer el valor asociado a la clave '%s' durante la carga: %v. Saltando.\n", claveString, err)
+			continue // Skip this key if its value can't be read
+		}
 
 		if err != nil {
 			fmt.Println("Error al leer el archivo:", err)
 			return errors.New("error al leer el archivo")
 		}
 
-		tablaHash[claveString] = DatosDiccionario{Clave: claveString, Valor: valor, PosicionValue: temp.Direccion, Tamaño: temp.Tamaño, PosicionKey: pos}
+		// Add to a temporary map first
+		tempMap[claveString] = DatosDiccionario{Clave: claveString, Valor: valor, PosicionValue: temp.Direccion, Tamaño: temp.Tamaño, PosicionKey: posKey}
+	}
+
+	// After reading all data from the file, acquire the lock once to update tablaHash
+	tablaHashMutex.Lock()
+	defer tablaHashMutex.Unlock() // Ensure it's unlocked even if something goes wrong here
+
+	// Copy all data from tempMap to tablaHash
+	for k, v := range tempMap {
+		tablaHash[k] = v
 	}
 
 	return nil
@@ -405,7 +543,14 @@ func (s *server) GetPrefix(ctx context.Context, in *pb.Consultar) (*pb.Respuesta
 }
 
 func (s *server) Get(ctx context.Context, in *pb.Consultar) (*pb.RespuestaGet, error) {
-	value, _ := searchKey(in.Clave, WHERE_HAST_TABLE)
+	value, err := searchKey(in.Clave, WHERE_HAST_TABLE)
+
+	if err != nil {
+		if strings.Contains(err.Error(), "clave no encontrada") {
+			return &pb.RespuestaGet{Estado: false, Mensaje: "Clave no encontrada"}, nil
+		}
+		return nil, err
+	}
 
 	return &pb.RespuestaGet{Estado: true, Mensaje: "OK", Objeto: &pb.Objeto{Clave: in.Clave, Valor: value}}, nil
 }
@@ -414,6 +559,9 @@ func (s *server) Set(ctx context.Context, in *pb.Insertar) (*pb.RespuestaSet, er
 	err := writeValues(in.Clave, in.Valor)
 
 	if err != nil {
+		if strings.Contains(err.Error(), "bloqueo") {
+			return &pb.RespuestaSet{Estado: false, Mensaje: fmt.Sprintf("Error concurrente: %v", err)}, nil
+		}
 		return nil, err
 	}
 
@@ -421,24 +569,44 @@ func (s *server) Set(ctx context.Context, in *pb.Insertar) (*pb.RespuestaSet, er
 }
 
 func (s *server) ResetDb(ctx context.Context, in *pb.RequestResetDb) (*pb.RespuestaReset, error) {
-	err := os.Remove("./db/keys.db")
+	fmt.Println("Solicitud ResetDb recibida.")
+	// Acquire write lock for tablaHashMutex before clearing the map
+	tablaHashMutex.Lock()
+	defer tablaHashMutex.Unlock()
 
-	if err != nil {
+	// Use os.RemoveAll for the 'db' directory to ensure everything inside is gone
+	err := os.RemoveAll("./db")
+	if err != nil && !os.IsNotExist(err) {
+		fmt.Println("Error al eliminar el directorio 'db':", err)
 		return nil, err
 	}
 
-	err = os.Remove("./db/values.db")
-
+	// Recreate the 'db' directory
+	err = os.Mkdir("./db", 0755)
 	if err != nil {
+		log.Printf("Error al crear el directorio 'db' después de ResetDb: %v", err)
 		return nil, err
 	}
 
+	// Reinitialize the map after deleting files
 	tablaHash = make(map[string]DatosDiccionario)
+	fmt.Println("Base de datos reiniciada exitosamente.")
 	return &pb.RespuestaReset{Estado: true, Mensaje: "OK"}, nil
 }
 
 func main() {
+
+	flag.Parse() // Parse command-line flags
+	// Ensure the 'db' directory exists at startup
+	if _, err := os.Stat("./db"); os.IsNotExist(err) {
+		err := os.Mkdir("./db", 0755)
+		if err != nil {
+			log.Fatalf("fallo al crear el directorio 'db': %v", err)
+		}
+	}
+
 	start := time.Now()
+	println("Iniciando la carga de datos a la memoria")
 	getAllValuesToDict()
 
 	fmt.Println("Datos cargados a la memoria")
