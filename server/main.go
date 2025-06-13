@@ -40,11 +40,17 @@ type InfClave struct {
 var InfClaveSize = 16 + 4 + 8
 
 type DatosDiccionario struct {
-	Clave    string
-	Valor    string
-	Posicion int64
-	Tamaño   int32
+	Clave         string
+	Valor         string
+	PosicionValue int64
+	PosicionKey   int64
+	Tamaño        int32
 }
+
+const (
+	WHERE_FILESYSTEM = 0
+	WHERE_HAST_TABLE = 1
+)
 
 var tablaHash = make(map[string]DatosDiccionario)
 
@@ -72,142 +78,181 @@ func getValue(pos int64, tamaño int32) (string, error) {
 	return string(buf), nil
 }
 
-func searchKey(key string) (string, error) {
-	var fileKeys, err = os.OpenFile("./db/keys.db", os.O_RDWR|os.O_CREATE, 0644)
-
-	if err != nil {
-		fmt.Println("Error al abrir/crear el archivo Keys de la DB:", err)
-		return "", errors.New("error al abrir/crear el archivo Keys de la DB")
-	}
-	defer fileKeys.Close()
-
-	fmt.Println("Archivo Keys abierto/creado exitosamente para la lectura.")
-
-	var buf = make([]byte, InfClaveSize)
-	fileKeys.Seek(0, io.SeekStart)
-
-	var clave InfClave
-	claveEncontrada := false
-
-	for {
-		_, err := fileKeys.Read(buf)
+func searchKey(key string, where int8) (string, error) {
+	if where == WHERE_FILESYSTEM {
+		var fileKeys, err = os.OpenFile("./db/keys.db", os.O_RDWR|os.O_CREATE, 0644)
 
 		if err != nil {
-			if err == io.EOF {
-				fmt.Println("Se ha leido el último elemento del archivo")
+			fmt.Println("Error al abrir/crear el archivo Keys de la DB:", err)
+			return "", errors.New("error al abrir/crear el archivo Keys de la DB")
+		}
+		defer fileKeys.Close()
+
+		fmt.Println("Archivo Keys abierto/creado exitosamente para la lectura.")
+
+		var buf = make([]byte, InfClaveSize)
+		fileKeys.Seek(0, io.SeekStart)
+
+		var clave InfClave
+		claveEncontrada := false
+
+		for {
+			_, err := fileKeys.Read(buf)
+
+			if err != nil {
+				if err == io.EOF {
+					fmt.Println("Se ha leido el último elemento del archivo")
+					break
+				}
+				fmt.Println("Error al leer el archivo:", err)
+				return "", errors.New("error al leer el archivo")
+			}
+
+			var temp InfClave
+			reader := bytes.NewReader(buf)
+			err = binary.Read(reader, binary.LittleEndian, &temp)
+
+			if err != nil {
+				fmt.Println("Error al leer el archivo:", err)
+				return "", errors.New("error al leer el archivo")
+			}
+
+			println(string(temp.Clave[:16]) + "   " + strconv.FormatInt(temp.Direccion, 10) + "   " + strconv.FormatInt(int64(temp.Tamaño), 10))
+			claveString := strings.TrimRight(string(temp.Clave[:16]), "\x00")
+			if claveString == key {
+				claveEncontrada = true
+				clave = temp
 				break
 			}
-			fmt.Println("Error al leer el archivo:", err)
-			return "", errors.New("error al leer el archivo")
 		}
 
-		var temp InfClave
-		reader := bytes.NewReader(buf)
-		err = binary.Read(reader, binary.LittleEndian, &temp)
-
-		if err != nil {
-			fmt.Println("Error al leer el archivo:", err)
-			return "", errors.New("error al leer el archivo")
+		if !claveEncontrada {
+			return "", errors.New("clave no encontrada")
 		}
 
-		println(string(temp.Clave[:16]) + "   " + strconv.FormatInt(temp.Direccion, 10) + "   " + strconv.FormatInt(int64(temp.Tamaño), 10))
-		claveString := strings.TrimRight(string(temp.Clave[:16]), "\x00")
-		if claveString == key {
-			claveEncontrada = true
-			clave = temp
-			break
-		}
-	}
-
-	if !claveEncontrada {
-		return "", errors.New("clave no encontrada")
-	}
-
-	valor, err := getValue(clave.Direccion, clave.Tamaño)
-
-	if err != nil {
-		fmt.Println("Error al leer el archivo:", err)
-		return "", errors.New("error al leer el archivo")
-	}
-
-	return valor, nil
-}
-
-func searchKeyPrefix(key string) ([]*pb.Objeto, error) {
-	var fileKeys, err = os.OpenFile("./db/keys.db", os.O_RDWR|os.O_CREATE, 0644)
-
-	if err != nil {
-		fmt.Println("Error al abrir/crear el archivo Keys de la DB:", err)
-		return []*pb.Objeto{}, errors.New("error al abrir/crear el archivo Keys de la DB")
-	}
-	defer fileKeys.Close()
-
-	fmt.Println("Archivo Keys abierto/creado exitosamente para la lectura.")
-
-	var buf = make([]byte, InfClaveSize)
-	fileKeys.Seek(0, io.SeekStart)
-
-	var claves []InfClave
-
-	for {
-		_, err := fileKeys.Read(buf)
-
-		if err != nil {
-			if err == io.EOF {
-				fmt.Println("Se ha leido el último elemento del archivo")
-				break
-			}
-			fmt.Println("Error al leer el archivo:", err)
-			return []*pb.Objeto{}, errors.New("error al leer el archivo")
-		}
-
-		var temp InfClave
-		reader := bytes.NewReader(buf)
-		err = binary.Read(reader, binary.LittleEndian, &temp)
-
-		if err != nil {
-			fmt.Println("Error al leer el archivo:", err)
-			return []*pb.Objeto{}, errors.New("error al leer el archivo")
-		}
-
-		claveString := strings.TrimRight(string(temp.Clave[:16]), "\x00")
-
-		if strings.HasPrefix(claveString, key) {
-			claves = append(claves, temp)
-		}
-	}
-
-	var objetos []*pb.Objeto
-
-	for _, clave := range claves {
 		valor, err := getValue(clave.Direccion, clave.Tamaño)
 
 		if err != nil {
 			fmt.Println("Error al leer el archivo:", err)
-			return []*pb.Objeto{}, errors.New("error al leer el archivo")
+			return "", errors.New("error al leer el archivo")
 		}
 
-		objeto := &pb.Objeto{Clave: string(clave.Clave[:16]), Valor: valor}
-
-		objetos = append(objetos, objeto)
+		return valor, nil
 	}
 
-	return objetos, nil
+	if where == WHERE_HAST_TABLE {
+		value, exist := tablaHash[key]
+		if !exist {
+			return "", errors.New("clave no encontrada")
+		}
+
+		return value.Valor, nil
+	}
+
+	return "", errors.New("error al leer el archivo")
 }
 
-func writeKeys(key string, posicion int64, tamaño int32) {
-	var fileKeys, err = os.OpenFile("./db/keys.db", os.O_RDWR|os.O_CREATE, 0644)
+func searchKeyPrefix(key string, where int8) ([]*pb.Objeto, error) {
+	if where == WHERE_FILESYSTEM {
+		var fileKeys, err = os.OpenFile("./db/keys.db", os.O_RDWR|os.O_CREATE, 0644)
 
+		if err != nil {
+			fmt.Println("Error al abrir/crear el archivo Keys de la DB:", err)
+			return []*pb.Objeto{}, errors.New("error al abrir/crear el archivo Keys de la DB")
+		}
+		defer fileKeys.Close()
+
+		fmt.Println("Archivo Keys abierto/creado exitosamente para la lectura.")
+
+		var buf = make([]byte, InfClaveSize)
+		fileKeys.Seek(0, io.SeekStart)
+
+		var claves []InfClave
+
+		for {
+			_, err := fileKeys.Read(buf)
+
+			if err != nil {
+				if err == io.EOF {
+					fmt.Println("Se ha leido el último elemento del archivo")
+					break
+				}
+				fmt.Println("Error al leer el archivo:", err)
+				return []*pb.Objeto{}, errors.New("error al leer el archivo")
+			}
+
+			var temp InfClave
+			reader := bytes.NewReader(buf)
+			err = binary.Read(reader, binary.LittleEndian, &temp)
+
+			if err != nil {
+				fmt.Println("Error al leer el archivo:", err)
+				return []*pb.Objeto{}, errors.New("error al leer el archivo")
+			}
+
+			claveString := strings.TrimRight(string(temp.Clave[:16]), "\x00")
+
+			if strings.HasPrefix(claveString, key) {
+				claves = append(claves, temp)
+			}
+		}
+
+		var objetos []*pb.Objeto
+
+		for _, clave := range claves {
+			valor, err := getValue(clave.Direccion, clave.Tamaño)
+
+			if err != nil {
+				fmt.Println("Error al leer el archivo:", err)
+				return []*pb.Objeto{}, errors.New("error al leer el archivo")
+			}
+
+			objeto := &pb.Objeto{Clave: string(clave.Clave[:16]), Valor: valor}
+
+			objetos = append(objetos, objeto)
+		}
+
+		return objetos, nil
+	}
+	if where == WHERE_HAST_TABLE {
+		var objetos []*pb.Objeto
+
+		for _, clave := range tablaHash {
+			if strings.HasPrefix(clave.Clave, key) {
+				objeto := &pb.Objeto{Clave: clave.Clave, Valor: clave.Valor}
+
+				objetos = append(objetos, objeto)
+			}
+
+		}
+
+		return objetos, nil
+	}
+
+	return nil, errors.New("error al leer el archivo")
+}
+
+func writeKeys(key string, posicion int64, tamaño int32) (int64, error) {
+	var fileKeys, err = os.OpenFile("./db/keys.db", os.O_RDWR|os.O_CREATE, 0644)
 	if err != nil {
 		fmt.Println("Error al abrir/crear el archivo Keys de la DB:", err)
-		return
+		return -1, err
 	}
 	defer fileKeys.Close() // Asegura que el archivo se cierre
+
+	tableValue, exist := tablaHash[key]
+	var pos int64
+
+	if !exist {
+		pos, _ = fileKeys.Seek(0, io.SeekEnd)
+
+	} else {
+		pos, _ = fileKeys.Seek(tableValue.PosicionKey, io.SeekStart)
+	}
 
 	fmt.Println("Archivo Keys abierto/creado para edicion exitosamente.")
 
 	var buf bytes.Buffer
-	fileKeys.Seek(0, io.SeekEnd)
 
 	var temp InfClave
 
@@ -219,16 +264,18 @@ func writeKeys(key string, posicion int64, tamaño int32) {
 
 	if err != nil {
 		fmt.Println("Error al escribir en el archivo:", err)
-		return
+		return -1, err
 	}
 
 	n, err := fileKeys.Write(buf.Bytes())
 	if err != nil {
 		fmt.Println("Error al escribir en el archivo:", err)
-		return
+		return -1, err
 	}
+
 	fmt.Printf("Se escribieron %d bytes en el final del archivo.\n", n)
 
+	return pos, nil
 }
 
 func writeValues(key string, value string) error {
@@ -285,10 +332,10 @@ func writeValues(key string, value string) error {
 		err = binary.Write(&buf, binary.LittleEndian, temp)
 	}
 
-	writeKeys(key, pos, tamaño)
+	posKey, err := writeKeys(key, pos, tamaño)
 	if err != nil {
-		fmt.Println("Error al escribir en el buffer:", err)
-		return errors.New("error al escribir en el buffer")
+		fmt.Println("Error al escribir en el archivo Keys:", err)
+		return errors.New("error al escribir en el archivo Keys")
 	}
 
 	n, err := fileValues.Write(buf.Bytes())
@@ -296,6 +343,8 @@ func writeValues(key string, value string) error {
 		fmt.Println("Error al escribir en el archivo:", err)
 		return errors.New("error al escribir en el archivo")
 	}
+
+	tablaHash[key] = DatosDiccionario{Clave: key, Valor: value, PosicionValue: pos, Tamaño: tamaño, PosicionKey: posKey}
 	fmt.Printf("Se escribieron %d bytes en el final del archivo.\n", n)
 
 	return nil
@@ -316,6 +365,7 @@ func getAllValuesToDict() error {
 	fileKeys.Seek(0, io.SeekStart)
 
 	for {
+		pos, _ := fileKeys.Seek(0, io.SeekCurrent)
 		_, err := fileKeys.Read(buf)
 
 		if err != nil {
@@ -344,7 +394,7 @@ func getAllValuesToDict() error {
 			return errors.New("error al leer el archivo")
 		}
 
-		tablaHash[claveString] = DatosDiccionario{Clave: claveString, Valor: valor, Posicion: temp.Direccion, Tamaño: temp.Tamaño}
+		tablaHash[claveString] = DatosDiccionario{Clave: claveString, Valor: valor, PosicionValue: temp.Direccion, Tamaño: temp.Tamaño, PosicionKey: pos}
 	}
 
 	return nil
@@ -355,7 +405,7 @@ type server struct {
 }
 
 func (s *server) GetPrefix(ctx context.Context, in *pb.Consultar) (*pb.RespuestaGetPrefix, error) {
-	res, err := searchKeyPrefix(in.Clave)
+	res, err := searchKeyPrefix(in.Clave, WHERE_HAST_TABLE)
 	if err != nil {
 		return nil, err
 	}
@@ -364,7 +414,7 @@ func (s *server) GetPrefix(ctx context.Context, in *pb.Consultar) (*pb.Respuesta
 }
 
 func (s *server) Get(ctx context.Context, in *pb.Consultar) (*pb.RespuestaGet, error) {
-	value, _ := searchKey(in.Clave)
+	value, _ := searchKey(in.Clave, WHERE_HAST_TABLE)
 
 	return &pb.RespuestaGet{Estado: true, Mensaje: "OK", Objeto: &pb.Objeto{Clave: in.Clave, Valor: value}}, nil
 }
@@ -380,8 +430,6 @@ func (s *server) Set(ctx context.Context, in *pb.Insertar) (*pb.RespuestaSet, er
 }
 
 func main() {
-
-	// Quiero que mida el tiempo en que empezo a cargar los datos
 	start := time.Now()
 	getAllValuesToDict()
 

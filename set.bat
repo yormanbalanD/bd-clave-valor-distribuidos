@@ -1,0 +1,1 @@
+python ./client/run_client.py set --key "ASDSDDSAAA" --value_size 512
