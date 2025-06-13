@@ -1,0 +1,1 @@
+python ./client/run_client.py bulkWrite --num_writes 10000 --value_size 4096
