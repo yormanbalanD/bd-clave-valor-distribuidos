@@ -13,13 +13,14 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	pb "github.com/yormanbalanD/bd-clave-valor-distribuidos/proto"
 	"google.golang.org/grpc"
 )
 
 var (
-	port = flag.Int("port", 50051, "The server port")
+	port = flag.Int("port", 5050, "The server port")
 )
 
 const (
@@ -37,6 +38,15 @@ type InfClave struct {
 }
 
 var InfClaveSize = 16 + 4 + 8
+
+type DatosDiccionario struct {
+	Clave    string
+	Valor    string
+	Posicion int64
+	Tamaño   int32
+}
+
+var tablaHash = make(map[string]DatosDiccionario)
 
 func getValue(pos int64, tamaño int32) (string, error) {
 	var fileValues, err = os.OpenFile("./db/values.db", os.O_RDWR|os.O_CREATE, 0644)
@@ -121,6 +131,68 @@ func searchKey(key string) (string, error) {
 	}
 
 	return valor, nil
+}
+
+func searchKeyPrefix(key string) ([]*pb.Objeto, error) {
+	var fileKeys, err = os.OpenFile("./db/keys.db", os.O_RDWR|os.O_CREATE, 0644)
+
+	if err != nil {
+		fmt.Println("Error al abrir/crear el archivo Keys de la DB:", err)
+		return []*pb.Objeto{}, errors.New("error al abrir/crear el archivo Keys de la DB")
+	}
+	defer fileKeys.Close()
+
+	fmt.Println("Archivo Keys abierto/creado exitosamente para la lectura.")
+
+	var buf = make([]byte, InfClaveSize)
+	fileKeys.Seek(0, io.SeekStart)
+
+	var claves []InfClave
+
+	for {
+		_, err := fileKeys.Read(buf)
+
+		if err != nil {
+			if err == io.EOF {
+				fmt.Println("Se ha leido el último elemento del archivo")
+				break
+			}
+			fmt.Println("Error al leer el archivo:", err)
+			return []*pb.Objeto{}, errors.New("error al leer el archivo")
+		}
+
+		var temp InfClave
+		reader := bytes.NewReader(buf)
+		err = binary.Read(reader, binary.LittleEndian, &temp)
+
+		if err != nil {
+			fmt.Println("Error al leer el archivo:", err)
+			return []*pb.Objeto{}, errors.New("error al leer el archivo")
+		}
+
+		claveString := strings.TrimRight(string(temp.Clave[:16]), "\x00")
+
+		if strings.HasPrefix(claveString, key) {
+			claves = append(claves, temp)
+		}
+	}
+
+	var objetos []*pb.Objeto
+
+	for _, clave := range claves {
+		valor, err := getValue(clave.Direccion, clave.Tamaño)
+
+		if err != nil {
+			fmt.Println("Error al leer el archivo:", err)
+			return []*pb.Objeto{}, errors.New("error al leer el archivo")
+		}
+
+		objeto := &pb.Objeto{Clave: string(clave.Clave[:16]), Valor: valor}
+
+		objetos = append(objetos, objeto)
+	}
+
+	return objetos, nil
 }
 
 func writeKeys(key string, posicion int64, tamaño int32) {
@@ -229,12 +301,66 @@ func writeValues(key string, value string) error {
 	return nil
 }
 
+func getAllValuesToDict() error {
+	var fileKeys, err = os.OpenFile("./db/keys.db", os.O_RDWR|os.O_CREATE, 0644)
+
+	if err != nil {
+		fmt.Println("Error al abrir/crear el archivo Keys de la DB:", err)
+		return errors.New("error al abrir/crear el archivo Keys de la DB")
+	}
+	defer fileKeys.Close() // Asegura que el archivo se cierre
+
+	fmt.Println("Archivo Keys abierto/creado exitosamente para la lectura.")
+
+	var buf = make([]byte, InfClaveSize)
+	fileKeys.Seek(0, io.SeekStart)
+
+	for {
+		_, err := fileKeys.Read(buf)
+
+		if err != nil {
+			if err == io.EOF {
+				fmt.Println("Se ha leido el último elemento del archivo")
+				break
+			}
+			fmt.Println("Error al leer el archivo:", err)
+			return errors.New("error al leer el archivo")
+		}
+
+		var temp InfClave
+		reader := bytes.NewReader(buf)
+		err = binary.Read(reader, binary.LittleEndian, &temp)
+
+		if err != nil {
+			fmt.Println("Error al leer el archivo:", err)
+			return errors.New("error al leer el archivo")
+		}
+
+		claveString := strings.TrimRight(string(temp.Clave[:16]), "\x00")
+		valor, err := getValue(temp.Direccion, temp.Tamaño)
+
+		if err != nil {
+			fmt.Println("Error al leer el archivo:", err)
+			return errors.New("error al leer el archivo")
+		}
+
+		tablaHash[claveString] = DatosDiccionario{Clave: claveString, Valor: valor, Posicion: temp.Direccion, Tamaño: temp.Tamaño}
+	}
+
+	return nil
+}
+
 type server struct {
 	pb.UnimplementedBDServer
 }
 
 func (s *server) GetPrefix(ctx context.Context, in *pb.Consultar) (*pb.RespuestaGetPrefix, error) {
-	return nil, nil
+	res, err := searchKeyPrefix(in.Clave)
+	if err != nil {
+		return nil, err
+	}
+
+	return &pb.RespuestaGetPrefix{Estado: true, Mensaje: "OK", Objetos: res}, nil
 }
 
 func (s *server) Get(ctx context.Context, in *pb.Consultar) (*pb.RespuestaGet, error) {
@@ -254,6 +380,17 @@ func (s *server) Set(ctx context.Context, in *pb.Insertar) (*pb.RespuestaSet, er
 }
 
 func main() {
+
+	// Quiero que mida el tiempo en que empezo a cargar los datos
+	start := time.Now()
+	getAllValuesToDict()
+
+	fmt.Println("Datos cargados a la memoria")
+	fmt.Println("Cantidad de clave valor cargados a la memoria:", len(tablaHash))
+	end := time.Now()
+
+	fmt.Println("Tiempo de carga:", end.Sub(start))
+
 	lis, err := net.Listen("tcp", ":5050")
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
