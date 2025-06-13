@@ -24,7 +24,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x0e\x63onexion.proto\x12\x08\x63onexion\"X\n\x12RespuestaGetPrefix\x12\x0e\n\x06\x65stado\x18\x01 \x01(\x08\x12\x0f\n\x07mensaje\x18\x02 \x01(\t\x12!\n\x07objetos\x18\x03 \x03(\x0b\x32\x10.conexion.Objeto\"Q\n\x0cRespuestaGet\x12\x0e\n\x06\x65stado\x18\x01 \x01(\x08\x12\x0f\n\x07mensaje\x18\x02 \x01(\t\x12 \n\x06objeto\x18\x03 \x01(\x0b\x32\x10.conexion.Objeto\"&\n\x06Objeto\x12\r\n\x05\x63lave\x18\x01 \x01(\t\x12\r\n\x05valor\x18\x02 \x01(\t\"\x1a\n\tConsultar\x12\r\n\x05\x63lave\x18\x01 \x01(\t\"(\n\x08Insertar\x12\r\n\x05\x63lave\x18\x01 \x01(\t\x12\r\n\x05valor\x18\x02 \x01(\t\"/\n\x0cRespuestaSet\x12\x0e\n\x06\x65stado\x18\x01 \x01(\x08\x12\x0f\n\x07mensaje\x18\x02 \x01(\t2\xab\x01\n\x02\x42\x44\x12\x31\n\x03set\x12\x12.conexion.Insertar\x1a\x16.conexion.RespuestaSet\x12\x32\n\x03get\x12\x13.conexion.Consultar\x1a\x16.conexion.RespuestaGet\x12>\n\tgetPrefix\x12\x13.conexion.Consultar\x1a\x1c.conexion.RespuestaGetPrefixB;Z9github.com/yormanbalanD/bd-clave-valor-distribuidos/protob\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x0e\x63onexion.proto\x12\x08\x63onexion\"\x10\n\x0eRequestResetDb\"1\n\x0eRespuestaReset\x12\x0e\n\x06\x65stado\x18\x01 \x01(\x08\x12\x0f\n\x07mensaje\x18\x02 \x01(\t\"X\n\x12RespuestaGetPrefix\x12\x0e\n\x06\x65stado\x18\x01 \x01(\x08\x12\x0f\n\x07mensaje\x18\x02 \x01(\t\x12!\n\x07objetos\x18\x03 \x03(\x0b\x32\x10.conexion.Objeto\"Q\n\x0cRespuestaGet\x12\x0e\n\x06\x65stado\x18\x01 \x01(\x08\x12\x0f\n\x07mensaje\x18\x02 \x01(\t\x12 \n\x06objeto\x18\x03 \x01(\x0b\x32\x10.conexion.Objeto\"&\n\x06Objeto\x12\r\n\x05\x63lave\x18\x01 \x01(\t\x12\r\n\x05valor\x18\x02 \x01(\t\"\x1a\n\tConsultar\x12\r\n\x05\x63lave\x18\x01 \x01(\t\"(\n\x08Insertar\x12\r\n\x05\x63lave\x18\x01 \x01(\t\x12\r\n\x05valor\x18\x02 \x01(\t\"/\n\x0cRespuestaSet\x12\x0e\n\x06\x65stado\x18\x01 \x01(\x08\x12\x0f\n\x07mensaje\x18\x02 \x01(\t2\xea\x01\n\x02\x42\x44\x12\x31\n\x03set\x12\x12.conexion.Insertar\x1a\x16.conexion.RespuestaSet\x12\x32\n\x03get\x12\x13.conexion.Consultar\x1a\x16.conexion.RespuestaGet\x12>\n\tgetPrefix\x12\x13.conexion.Consultar\x1a\x1c.conexion.RespuestaGetPrefix\x12=\n\x07resetDb\x12\x18.conexion.RequestResetDb\x1a\x18.conexion.RespuestaResetB;Z9github.com/yormanbalanD/bd-clave-valor-distribuidos/protob\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -32,18 +32,22 @@ _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'conexion_pb2', _globals)
 if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
   _globals['DESCRIPTOR']._serialized_options = b'Z9github.com/yormanbalanD/bd-clave-valor-distribuidos/proto'
-  _globals['_RESPUESTAGETPREFIX']._serialized_start=28
-  _globals['_RESPUESTAGETPREFIX']._serialized_end=116
-  _globals['_RESPUESTAGET']._serialized_start=118
-  _globals['_RESPUESTAGET']._serialized_end=199
-  _globals['_OBJETO']._serialized_start=201
-  _globals['_OBJETO']._serialized_end=239
-  _globals['_CONSULTAR']._serialized_start=241
-  _globals['_CONSULTAR']._serialized_end=267
-  _globals['_INSERTAR']._serialized_start=269
-  _globals['_INSERTAR']._serialized_end=309
-  _globals['_RESPUESTASET']._serialized_start=311
-  _globals['_RESPUESTASET']._serialized_end=358
-  _globals['_BD']._serialized_start=361
-  _globals['_BD']._serialized_end=532
+  _globals['_REQUESTRESETDB']._serialized_start=28
+  _globals['_REQUESTRESETDB']._serialized_end=44
+  _globals['_RESPUESTARESET']._serialized_start=46
+  _globals['_RESPUESTARESET']._serialized_end=95
+  _globals['_RESPUESTAGETPREFIX']._serialized_start=97
+  _globals['_RESPUESTAGETPREFIX']._serialized_end=185
+  _globals['_RESPUESTAGET']._serialized_start=187
+  _globals['_RESPUESTAGET']._serialized_end=268
+  _globals['_OBJETO']._serialized_start=270
+  _globals['_OBJETO']._serialized_end=308
+  _globals['_CONSULTAR']._serialized_start=310
+  _globals['_CONSULTAR']._serialized_end=336
+  _globals['_INSERTAR']._serialized_start=338
+  _globals['_INSERTAR']._serialized_end=378
+  _globals['_RESPUESTASET']._serialized_start=380
+  _globals['_RESPUESTASET']._serialized_end=427
+  _globals['_BD']._serialized_start=430
+  _globals['_BD']._serialized_end=664
 # @@protoc_insertion_point(module_scope)

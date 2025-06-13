@@ -21,7 +21,7 @@ def main():
     Función principal para ejecutar el cliente gRPC.
     """
     parser = argparse.ArgumentParser(description='gRPC Key-Value Store Client')
-    parser.add_argument('action', choices=['set', 'get', 'getPrefix', 'bulkWrite'], help='Acción a realizar')
+    parser.add_argument('action', choices=['set', 'get', 'getPrefix', 'bulkWrite', 'resetDb'], help='Acción a realizar')
     parser.add_argument('--key', help='Clave para las operaciones set/get')
     parser.add_argument('--value_size', type=int, default=512, help='Tamaño del valor en bytes para la operación set (por defecto: 512)')
     parser.add_argument('--prefix', help='Prefijo para la operación getPrefix')
@@ -81,8 +81,12 @@ def main():
                 print(f"Operación getPrefix: Values = {values}")
             else:
                 print("No se encontraron claves con ese prefijo")
+        elif args.action == 'resetDb':
+            client.reset_db()
+            print("Base de datos reseteada.")
 
         client.close()  # Cierra la conexión al final
+        
 
     print("Cliente finalizado.")  # Imprime un mensaje de finalización
 

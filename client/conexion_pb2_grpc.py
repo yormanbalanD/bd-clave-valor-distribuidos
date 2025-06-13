@@ -49,6 +49,11 @@ class BDStub(object):
                 request_serializer=conexion__pb2.Consultar.SerializeToString,
                 response_deserializer=conexion__pb2.RespuestaGetPrefix.FromString,
                 _registered_method=True)
+        self.resetDb = channel.unary_unary(
+                '/conexion.BD/resetDb',
+                request_serializer=conexion__pb2.RequestResetDb.SerializeToString,
+                response_deserializer=conexion__pb2.RespuestaReset.FromString,
+                _registered_method=True)
 
 
 class BDServicer(object):
@@ -72,6 +77,12 @@ class BDServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def resetDb(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_BDServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -89,6 +100,11 @@ def add_BDServicer_to_server(servicer, server):
                     servicer.getPrefix,
                     request_deserializer=conexion__pb2.Consultar.FromString,
                     response_serializer=conexion__pb2.RespuestaGetPrefix.SerializeToString,
+            ),
+            'resetDb': grpc.unary_unary_rpc_method_handler(
+                    servicer.resetDb,
+                    request_deserializer=conexion__pb2.RequestResetDb.FromString,
+                    response_serializer=conexion__pb2.RespuestaReset.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -172,6 +188,33 @@ class BD(object):
             '/conexion.BD/getPrefix',
             conexion__pb2.Consultar.SerializeToString,
             conexion__pb2.RespuestaGetPrefix.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def resetDb(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/conexion.BD/resetDb',
+            conexion__pb2.RequestResetDb.SerializeToString,
+            conexion__pb2.RespuestaReset.FromString,
             options,
             channel_credentials,
             insecure,

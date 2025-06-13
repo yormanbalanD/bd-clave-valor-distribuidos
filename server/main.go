@@ -63,8 +63,6 @@ func getValue(pos int64, tamaño int32) (string, error) {
 	}
 	defer fileValues.Close()
 
-	fmt.Println("Archivo Values abierto/creado exitosamente.")
-
 	var buf = make([]byte, tamaño)
 	fileValues.Seek(pos, io.SeekStart)
 
@@ -87,8 +85,6 @@ func searchKey(key string, where int8) (string, error) {
 			return "", errors.New("error al abrir/crear el archivo Keys de la DB")
 		}
 		defer fileKeys.Close()
-
-		fmt.Println("Archivo Keys abierto/creado exitosamente para la lectura.")
 
 		var buf = make([]byte, InfClaveSize)
 		fileKeys.Seek(0, io.SeekStart)
@@ -161,8 +157,6 @@ func searchKeyPrefix(key string, where int8) ([]*pb.Objeto, error) {
 			return []*pb.Objeto{}, errors.New("error al abrir/crear el archivo Keys de la DB")
 		}
 		defer fileKeys.Close()
-
-		fmt.Println("Archivo Keys abierto/creado exitosamente para la lectura.")
 
 		var buf = make([]byte, InfClaveSize)
 		fileKeys.Seek(0, io.SeekStart)
@@ -250,8 +244,6 @@ func writeKeys(key string, posicion int64, tamaño int32) (int64, error) {
 		pos, _ = fileKeys.Seek(tableValue.PosicionKey, io.SeekStart)
 	}
 
-	fmt.Println("Archivo Keys abierto/creado para edicion exitosamente.")
-
 	var buf bytes.Buffer
 
 	var temp InfClave
@@ -285,8 +277,6 @@ func writeValues(key string, value string) error {
 		return errors.New("error al abrir/crear el archivo Values de la DB")
 	}
 	defer fileValues.Close() // Asegura que el archivo se cierre
-
-	fmt.Println("Archivo Values abierto/creado exitosamente.")
 
 	var tamaño int32
 	var lenValue = len(value)
@@ -344,6 +334,7 @@ func writeValues(key string, value string) error {
 		return errors.New("error al escribir en el archivo")
 	}
 
+	println("Clave: %s Valor: %s PosicionValue: %d PosicionKey: %d Tamaño: %d", key, value, pos, posKey, tamaño)
 	tablaHash[key] = DatosDiccionario{Clave: key, Valor: value, PosicionValue: pos, Tamaño: tamaño, PosicionKey: posKey}
 	fmt.Printf("Se escribieron %d bytes en el final del archivo.\n", n)
 
@@ -427,6 +418,23 @@ func (s *server) Set(ctx context.Context, in *pb.Insertar) (*pb.RespuestaSet, er
 	}
 
 	return &pb.RespuestaSet{Estado: true, Mensaje: "OK"}, nil
+}
+
+func (s *server) ResetDb(ctx context.Context, in *pb.RequestResetDb) (*pb.RespuestaReset, error) {
+	err := os.Remove("./db/keys.db")
+
+	if err != nil {
+		return nil, err
+	}
+
+	err = os.Remove("./db/values.db")
+
+	if err != nil {
+		return nil, err
+	}
+
+	tablaHash = make(map[string]DatosDiccionario)
+	return &pb.RespuestaReset{Estado: true, Mensaje: "OK"}, nil
 }
 
 func main() {

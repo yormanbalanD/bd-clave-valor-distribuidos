@@ -21,6 +21,94 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+type RequestResetDb struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RequestResetDb) Reset() {
+	*x = RequestResetDb{}
+	mi := &file_proto_conexion_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RequestResetDb) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RequestResetDb) ProtoMessage() {}
+
+func (x *RequestResetDb) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_conexion_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RequestResetDb.ProtoReflect.Descriptor instead.
+func (*RequestResetDb) Descriptor() ([]byte, []int) {
+	return file_proto_conexion_proto_rawDescGZIP(), []int{0}
+}
+
+type RespuestaReset struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Estado        bool                   `protobuf:"varint,1,opt,name=estado,proto3" json:"estado,omitempty"`
+	Mensaje       string                 `protobuf:"bytes,2,opt,name=mensaje,proto3" json:"mensaje,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RespuestaReset) Reset() {
+	*x = RespuestaReset{}
+	mi := &file_proto_conexion_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RespuestaReset) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RespuestaReset) ProtoMessage() {}
+
+func (x *RespuestaReset) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_conexion_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RespuestaReset.ProtoReflect.Descriptor instead.
+func (*RespuestaReset) Descriptor() ([]byte, []int) {
+	return file_proto_conexion_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *RespuestaReset) GetEstado() bool {
+	if x != nil {
+		return x.Estado
+	}
+	return false
+}
+
+func (x *RespuestaReset) GetMensaje() string {
+	if x != nil {
+		return x.Mensaje
+	}
+	return ""
+}
+
 type RespuestaGetPrefix struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Estado        bool                   `protobuf:"varint,1,opt,name=estado,proto3" json:"estado,omitempty"`
@@ -32,7 +120,7 @@ type RespuestaGetPrefix struct {
 
 func (x *RespuestaGetPrefix) Reset() {
 	*x = RespuestaGetPrefix{}
-	mi := &file_proto_conexion_proto_msgTypes[0]
+	mi := &file_proto_conexion_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -44,7 +132,7 @@ func (x *RespuestaGetPrefix) String() string {
 func (*RespuestaGetPrefix) ProtoMessage() {}
 
 func (x *RespuestaGetPrefix) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_conexion_proto_msgTypes[0]
+	mi := &file_proto_conexion_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -57,7 +145,7 @@ func (x *RespuestaGetPrefix) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RespuestaGetPrefix.ProtoReflect.Descriptor instead.
 func (*RespuestaGetPrefix) Descriptor() ([]byte, []int) {
-	return file_proto_conexion_proto_rawDescGZIP(), []int{0}
+	return file_proto_conexion_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *RespuestaGetPrefix) GetEstado() bool {
@@ -92,7 +180,7 @@ type RespuestaGet struct {
 
 func (x *RespuestaGet) Reset() {
 	*x = RespuestaGet{}
-	mi := &file_proto_conexion_proto_msgTypes[1]
+	mi := &file_proto_conexion_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -104,7 +192,7 @@ func (x *RespuestaGet) String() string {
 func (*RespuestaGet) ProtoMessage() {}
 
 func (x *RespuestaGet) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_conexion_proto_msgTypes[1]
+	mi := &file_proto_conexion_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -117,7 +205,7 @@ func (x *RespuestaGet) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RespuestaGet.ProtoReflect.Descriptor instead.
 func (*RespuestaGet) Descriptor() ([]byte, []int) {
-	return file_proto_conexion_proto_rawDescGZIP(), []int{1}
+	return file_proto_conexion_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *RespuestaGet) GetEstado() bool {
@@ -151,7 +239,7 @@ type Objeto struct {
 
 func (x *Objeto) Reset() {
 	*x = Objeto{}
-	mi := &file_proto_conexion_proto_msgTypes[2]
+	mi := &file_proto_conexion_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -163,7 +251,7 @@ func (x *Objeto) String() string {
 func (*Objeto) ProtoMessage() {}
 
 func (x *Objeto) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_conexion_proto_msgTypes[2]
+	mi := &file_proto_conexion_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -176,7 +264,7 @@ func (x *Objeto) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Objeto.ProtoReflect.Descriptor instead.
 func (*Objeto) Descriptor() ([]byte, []int) {
-	return file_proto_conexion_proto_rawDescGZIP(), []int{2}
+	return file_proto_conexion_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *Objeto) GetClave() string {
@@ -202,7 +290,7 @@ type Consultar struct {
 
 func (x *Consultar) Reset() {
 	*x = Consultar{}
-	mi := &file_proto_conexion_proto_msgTypes[3]
+	mi := &file_proto_conexion_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -214,7 +302,7 @@ func (x *Consultar) String() string {
 func (*Consultar) ProtoMessage() {}
 
 func (x *Consultar) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_conexion_proto_msgTypes[3]
+	mi := &file_proto_conexion_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -227,7 +315,7 @@ func (x *Consultar) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Consultar.ProtoReflect.Descriptor instead.
 func (*Consultar) Descriptor() ([]byte, []int) {
-	return file_proto_conexion_proto_rawDescGZIP(), []int{3}
+	return file_proto_conexion_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *Consultar) GetClave() string {
@@ -247,7 +335,7 @@ type Insertar struct {
 
 func (x *Insertar) Reset() {
 	*x = Insertar{}
-	mi := &file_proto_conexion_proto_msgTypes[4]
+	mi := &file_proto_conexion_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -259,7 +347,7 @@ func (x *Insertar) String() string {
 func (*Insertar) ProtoMessage() {}
 
 func (x *Insertar) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_conexion_proto_msgTypes[4]
+	mi := &file_proto_conexion_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -272,7 +360,7 @@ func (x *Insertar) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Insertar.ProtoReflect.Descriptor instead.
 func (*Insertar) Descriptor() ([]byte, []int) {
-	return file_proto_conexion_proto_rawDescGZIP(), []int{4}
+	return file_proto_conexion_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *Insertar) GetClave() string {
@@ -299,7 +387,7 @@ type RespuestaSet struct {
 
 func (x *RespuestaSet) Reset() {
 	*x = RespuestaSet{}
-	mi := &file_proto_conexion_proto_msgTypes[5]
+	mi := &file_proto_conexion_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -311,7 +399,7 @@ func (x *RespuestaSet) String() string {
 func (*RespuestaSet) ProtoMessage() {}
 
 func (x *RespuestaSet) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_conexion_proto_msgTypes[5]
+	mi := &file_proto_conexion_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -324,7 +412,7 @@ func (x *RespuestaSet) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RespuestaSet.ProtoReflect.Descriptor instead.
 func (*RespuestaSet) Descriptor() ([]byte, []int) {
-	return file_proto_conexion_proto_rawDescGZIP(), []int{5}
+	return file_proto_conexion_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *RespuestaSet) GetEstado() bool {
@@ -345,7 +433,11 @@ var File_proto_conexion_proto protoreflect.FileDescriptor
 
 const file_proto_conexion_proto_rawDesc = "" +
 	"\n" +
-	"\x14proto/conexion.proto\x12\bconexion\"r\n" +
+	"\x14proto/conexion.proto\x12\bconexion\"\x10\n" +
+	"\x0eRequestResetDb\"B\n" +
+	"\x0eRespuestaReset\x12\x16\n" +
+	"\x06estado\x18\x01 \x01(\bR\x06estado\x12\x18\n" +
+	"\amensaje\x18\x02 \x01(\tR\amensaje\"r\n" +
 	"\x12RespuestaGetPrefix\x12\x16\n" +
 	"\x06estado\x18\x01 \x01(\bR\x06estado\x12\x18\n" +
 	"\amensaje\x18\x02 \x01(\tR\amensaje\x12*\n" +
@@ -364,11 +456,12 @@ const file_proto_conexion_proto_rawDesc = "" +
 	"\x05valor\x18\x02 \x01(\tR\x05valor\"@\n" +
 	"\fRespuestaSet\x12\x16\n" +
 	"\x06estado\x18\x01 \x01(\bR\x06estado\x12\x18\n" +
-	"\amensaje\x18\x02 \x01(\tR\amensaje2\xab\x01\n" +
+	"\amensaje\x18\x02 \x01(\tR\amensaje2\xea\x01\n" +
 	"\x02BD\x121\n" +
 	"\x03set\x12\x12.conexion.Insertar\x1a\x16.conexion.RespuestaSet\x122\n" +
 	"\x03get\x12\x13.conexion.Consultar\x1a\x16.conexion.RespuestaGet\x12>\n" +
-	"\tgetPrefix\x12\x13.conexion.Consultar\x1a\x1c.conexion.RespuestaGetPrefixB;Z9github.com/yormanbalanD/bd-clave-valor-distribuidos/protob\x06proto3"
+	"\tgetPrefix\x12\x13.conexion.Consultar\x1a\x1c.conexion.RespuestaGetPrefix\x12=\n" +
+	"\aresetDb\x12\x18.conexion.RequestResetDb\x1a\x18.conexion.RespuestaResetB;Z9github.com/yormanbalanD/bd-clave-valor-distribuidos/protob\x06proto3"
 
 var (
 	file_proto_conexion_proto_rawDescOnce sync.Once
@@ -382,26 +475,30 @@ func file_proto_conexion_proto_rawDescGZIP() []byte {
 	return file_proto_conexion_proto_rawDescData
 }
 
-var file_proto_conexion_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_proto_conexion_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_proto_conexion_proto_goTypes = []any{
-	(*RespuestaGetPrefix)(nil), // 0: conexion.RespuestaGetPrefix
-	(*RespuestaGet)(nil),       // 1: conexion.RespuestaGet
-	(*Objeto)(nil),             // 2: conexion.Objeto
-	(*Consultar)(nil),          // 3: conexion.Consultar
-	(*Insertar)(nil),           // 4: conexion.Insertar
-	(*RespuestaSet)(nil),       // 5: conexion.RespuestaSet
+	(*RequestResetDb)(nil),     // 0: conexion.RequestResetDb
+	(*RespuestaReset)(nil),     // 1: conexion.RespuestaReset
+	(*RespuestaGetPrefix)(nil), // 2: conexion.RespuestaGetPrefix
+	(*RespuestaGet)(nil),       // 3: conexion.RespuestaGet
+	(*Objeto)(nil),             // 4: conexion.Objeto
+	(*Consultar)(nil),          // 5: conexion.Consultar
+	(*Insertar)(nil),           // 6: conexion.Insertar
+	(*RespuestaSet)(nil),       // 7: conexion.RespuestaSet
 }
 var file_proto_conexion_proto_depIdxs = []int32{
-	2, // 0: conexion.RespuestaGetPrefix.objetos:type_name -> conexion.Objeto
-	2, // 1: conexion.RespuestaGet.objeto:type_name -> conexion.Objeto
-	4, // 2: conexion.BD.set:input_type -> conexion.Insertar
-	3, // 3: conexion.BD.get:input_type -> conexion.Consultar
-	3, // 4: conexion.BD.getPrefix:input_type -> conexion.Consultar
-	5, // 5: conexion.BD.set:output_type -> conexion.RespuestaSet
-	1, // 6: conexion.BD.get:output_type -> conexion.RespuestaGet
-	0, // 7: conexion.BD.getPrefix:output_type -> conexion.RespuestaGetPrefix
-	5, // [5:8] is the sub-list for method output_type
-	2, // [2:5] is the sub-list for method input_type
+	4, // 0: conexion.RespuestaGetPrefix.objetos:type_name -> conexion.Objeto
+	4, // 1: conexion.RespuestaGet.objeto:type_name -> conexion.Objeto
+	6, // 2: conexion.BD.set:input_type -> conexion.Insertar
+	5, // 3: conexion.BD.get:input_type -> conexion.Consultar
+	5, // 4: conexion.BD.getPrefix:input_type -> conexion.Consultar
+	0, // 5: conexion.BD.resetDb:input_type -> conexion.RequestResetDb
+	7, // 6: conexion.BD.set:output_type -> conexion.RespuestaSet
+	3, // 7: conexion.BD.get:output_type -> conexion.RespuestaGet
+	2, // 8: conexion.BD.getPrefix:output_type -> conexion.RespuestaGetPrefix
+	1, // 9: conexion.BD.resetDb:output_type -> conexion.RespuestaReset
+	6, // [6:10] is the sub-list for method output_type
+	2, // [2:6] is the sub-list for method input_type
 	2, // [2:2] is the sub-list for extension type_name
 	2, // [2:2] is the sub-list for extension extendee
 	0, // [0:2] is the sub-list for field type_name
@@ -418,7 +515,7 @@ func file_proto_conexion_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_conexion_proto_rawDesc), len(file_proto_conexion_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   6,
+			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

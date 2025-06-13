@@ -55,6 +55,18 @@ class KeyValueClient:
             print(f"Error gRPC al obtener el prefijo: {e}")
             return False, str(e)
 
+    def reset_db(self):
+        print("Intentando resetear la base de datos")
+        request = pb.RequestResetDb()
+        try:
+            # Call the correct method name: GetPrefix
+            response = self.stub.resetDb(request)
+            print(f"Respuesta del servidor: Estado = {response.estado}, Mensaje = {response.mensaje}")
+            return response.estado, response.mensaje # Return state and list of objects
+        except grpc.RpcError as e:
+            print(f"Error gRPC al resetear la base de datos: {e}")
+            return False, str(e)
+
     def close(self):
         print("Cerrando la conexión con el servidor.")
         self.channel.close()

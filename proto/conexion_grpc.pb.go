@@ -22,6 +22,7 @@ const (
 	BD_Set_FullMethodName       = "/conexion.BD/set"
 	BD_Get_FullMethodName       = "/conexion.BD/get"
 	BD_GetPrefix_FullMethodName = "/conexion.BD/getPrefix"
+	BD_ResetDb_FullMethodName   = "/conexion.BD/resetDb"
 )
 
 // BDClient is the client API for BD service.
@@ -31,6 +32,7 @@ type BDClient interface {
 	Set(ctx context.Context, in *Insertar, opts ...grpc.CallOption) (*RespuestaSet, error)
 	Get(ctx context.Context, in *Consultar, opts ...grpc.CallOption) (*RespuestaGet, error)
 	GetPrefix(ctx context.Context, in *Consultar, opts ...grpc.CallOption) (*RespuestaGetPrefix, error)
+	ResetDb(ctx context.Context, in *RequestResetDb, opts ...grpc.CallOption) (*RespuestaReset, error)
 }
 
 type bDClient struct {
@@ -71,6 +73,16 @@ func (c *bDClient) GetPrefix(ctx context.Context, in *Consultar, opts ...grpc.Ca
 	return out, nil
 }
 
+func (c *bDClient) ResetDb(ctx context.Context, in *RequestResetDb, opts ...grpc.CallOption) (*RespuestaReset, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RespuestaReset)
+	err := c.cc.Invoke(ctx, BD_ResetDb_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // BDServer is the server API for BD service.
 // All implementations must embed UnimplementedBDServer
 // for forward compatibility.
@@ -78,6 +90,7 @@ type BDServer interface {
 	Set(context.Context, *Insertar) (*RespuestaSet, error)
 	Get(context.Context, *Consultar) (*RespuestaGet, error)
 	GetPrefix(context.Context, *Consultar) (*RespuestaGetPrefix, error)
+	ResetDb(context.Context, *RequestResetDb) (*RespuestaReset, error)
 	mustEmbedUnimplementedBDServer()
 }
 
@@ -96,6 +109,9 @@ func (UnimplementedBDServer) Get(context.Context, *Consultar) (*RespuestaGet, er
 }
 func (UnimplementedBDServer) GetPrefix(context.Context, *Consultar) (*RespuestaGetPrefix, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetPrefix not implemented")
+}
+func (UnimplementedBDServer) ResetDb(context.Context, *RequestResetDb) (*RespuestaReset, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ResetDb not implemented")
 }
 func (UnimplementedBDServer) mustEmbedUnimplementedBDServer() {}
 func (UnimplementedBDServer) testEmbeddedByValue()            {}
@@ -172,6 +188,24 @@ func _BD_GetPrefix_Handler(srv interface{}, ctx context.Context, dec func(interf
 	return interceptor(ctx, in, info, handler)
 }
 
+func _BD_ResetDb_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RequestResetDb)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BDServer).ResetDb(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: BD_ResetDb_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BDServer).ResetDb(ctx, req.(*RequestResetDb))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // BD_ServiceDesc is the grpc.ServiceDesc for BD service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -190,6 +224,10 @@ var BD_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "getPrefix",
 			Handler:    _BD_GetPrefix_Handler,
+		},
+		{
+			MethodName: "resetDb",
+			Handler:    _BD_ResetDb_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
