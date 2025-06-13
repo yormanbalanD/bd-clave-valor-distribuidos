@@ -4,6 +4,7 @@ import grpc
 import conexion_pb2 as pb
 import conexion_pb2_grpc as pb_grpc
 import utils # Make sure 'utils' is relevant if you need it
+import time
 
 class KeyValueClient:
     def __init__(self, server_address='localhost:5050'): # Ensure this matches your Go server's port (50051 based on your main.go)
@@ -18,28 +19,47 @@ class KeyValueClient:
         # Use the correct request message name: Insertar
         request = pb.Insertar(clave=key, valor=value)
         try:
-            # Call the correct method name: Set (PascalCase as per gRPC convention)
             response = self.stub.set(request)
-            print(f"Respuesta del servidor: Status = {response.estado}, Message = {response.mensaje}") # Update field names
+            
             return response.estado, response.mensaje
         except grpc.RpcError as e:
-            print(f"Error gRPC al establecer la clave: {e}")
+            # print(f"Error gRPC al establecer la clave '{key}': {e}")
             return False, str(e)
 
     def get(self, key):
         print(f"Intentando obtener el valor para la clave: {key}")
         # Use the correct request message name: Consultar
-        request = pb.Consultar(clave=key)
-        try:
-            # Call the correct method name: Get
-            response = self.stub.get(request)
-            # Update field names based on your RespuestaGet message
-            print(f"Respuesta del servidor: Estado = {response.estado}, Mensaje = {response.mensaje}")
-            # You might return response.objeto.valor if it exists
-            return response.estado, response.objeto.valor if response.estado else response.mensaje
-        except grpc.RpcError as e:
-            print(f"Error gRPC al obtener la clave: {e}")
-            return False, str(e)
+        retries = 0
+        while retries < max_retries:
+            request = pb.Insertar(clave=key, valor=value)
+            try:
+                response = self.stub.Set(request) # Método Set (PascalCase)
+                if response.estado:
+                    # print(f"Respuesta del servidor para '{key}': Estado = {response.estado}, Mensaje = {response.mensaje}")
+                    return response.estado, response.mensaje
+                else:
+                    # Si el estado es False, verificamos si es un error de "bloqueo"
+                    if "bloqueo en la posición" in response.mensaje:
+                        retries += 1
+                        delay = (base_delay_ms / 1000.0) * (2 ** (retries - 1)) # Backoff exponencial
+                        print(f"Reintentando '{key}' ({retries}/{max_retries} intentos) debido a '{response.mensaje}'. Esperando {delay:.2f}s...")
+                        time.sleep(delay)
+                    else:
+                        # Si no es un error de bloqueo, devolver el error inmediatamente
+                        print(f"Fallo al establecer la clave '{key}' (no es bloqueo): {response.mensaje}")
+                        return response.estado, response.mensaje
+            except grpc.RpcError as e:
+                # Errores de comunicación gRPC (e.g., servidor no disponible)
+                print(f"Error gRPC al establecer la clave '{key}': {e}")
+                return False, str(e)
+            except Exception as e:
+                # Otros errores inesperados
+                print(f"Error inesperado al establecer la clave '{key}': {e}")
+                return False, str(e)
+        
+        # Si se agotan los reintentos
+        return False, f"Fallo al establecer la clave '{key}' después de {max_retries} reintentos. Último mensaje: {message}"
+
 
     def get_prefix(self, prefix):
         print(f"Intentando obtener valores con el prefijo: {prefix}")

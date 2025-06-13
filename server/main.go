@@ -56,8 +56,11 @@ const (
 var tablaHash = make(map[string]DatosDiccionario)
 var tablaHashMutex sync.RWMutex
 
-var keysFileMutex sync.Mutex
-var valuesFileMutex sync.Mutex
+var bloqueoValues = make(map[int64]string)
+var bloqueoValuesMutex sync.Mutex
+
+var bloqueoKeys = make(map[int64]string)
+var bloqueoKeysMutex sync.Mutex
 
 func getValue(pos int64, tamaño int32) (string, error) {
 	var fileValues, err = os.OpenFile("./db/values.db", os.O_RDWR|os.O_CREATE, 0644)
@@ -279,9 +282,6 @@ func searchKeyPrefix(key string, where int8) ([]*pb.Objeto, error) {
 }
 
 func writeKeys(key string, posicion int64, tamaño int32) (int64, error) {
-	keysFileMutex.Lock() // Acquire lock for keys.db file writes
-	defer keysFileMutex.Unlock()
-
 	var fileKeys, err = os.OpenFile("./db/keys.db", os.O_RDWR|os.O_CREATE, 0644)
 	if err != nil {
 		fmt.Println("Error al abrir/crear el archivo Keys de la DB:", err)
@@ -291,6 +291,7 @@ func writeKeys(key string, posicion int64, tamaño int32) (int64, error) {
 
 	var pos int64
 
+	bloqueoKeysMutex.Lock() // Protect access to `bloqueoKeys` map
 	// Critical section: determine position and mark it
 	tablaHashMutex.RLock() // Read lock to check if key exists in hash table
 	tableValue, exist := tablaHash[key]
@@ -301,10 +302,25 @@ func writeKeys(key string, posicion int64, tamaño int32) (int64, error) {
 	} else {
 		pos, err = fileKeys.Seek(0, io.SeekEnd) // New key, append to end
 		if err != nil {
+			bloqueoKeysMutex.Unlock() // IMPORTANT: Unlock before returning
 			fmt.Println("Error al posicionar el archivo Keys al final:", err)
 			return -1, errors.New("error al posicionar el archivo Keys al final")
 		}
 	}
+
+	if _, isBlocked := bloqueoKeys[pos]; isBlocked {
+		bloqueoKeysMutex.Unlock() // IMPORTANT: Unlock `bloqueoKeysMutex` before returning this error
+		return -1, fmt.Errorf("bloqueo en la posición %d para clave '%s'", pos, key)
+	}
+	bloqueoKeys[pos] = key // Mark this position as being handled
+	bloqueoKeysMutex.Unlock()
+
+	defer func(p int64) {
+		bloqueoKeysMutex.Lock() // Re-acquire lock to modify the map
+		delete(bloqueoKeys, p)
+		bloqueoKeysMutex.Unlock()
+		// println("bloqueoKeysMutex - Position", p, "unblocked.")
+	}(pos)
 
 	_, err = fileKeys.Seek(pos, io.SeekStart)
 	if err != nil {
@@ -338,9 +354,6 @@ func writeKeys(key string, posicion int64, tamaño int32) (int64, error) {
 }
 
 func writeValues(key string, value string) error {
-
-	valuesFileMutex.Lock() // Acquire lock for values.db file writes
-	defer valuesFileMutex.Unlock()
 	var fileValues, err = os.OpenFile("./db/values.db", os.O_RDWR|os.O_CREATE, 0644)
 	if err != nil {
 		fmt.Println("Error al abrir/crear el archivo Values de la DB:", err)
@@ -368,6 +381,7 @@ func writeValues(key string, value string) error {
 
 	var pos int64
 
+	bloqueoValuesMutex.Lock() // Protect access to `bloqueoValues` map
 	// Critical section: determine position and mark it
 	tablaHashMutex.RLock() // Read lock to check if key exists in hash table
 	existingEntry, exist := tablaHash[key]
@@ -378,6 +392,7 @@ func writeValues(key string, value string) error {
 	} else {
 		pos, err = fileValues.Seek(0, io.SeekEnd) // New value, append to end
 		if err != nil {
+			bloqueoValuesMutex.Unlock() // IMPORTANT: Unlock before returning
 			fmt.Println("Error al posicionar el archivo Values al final:", err)
 			return errors.New("error al posicionar el archivo Values al final")
 		}
@@ -402,15 +417,6 @@ func writeValues(key string, value string) error {
 		fmt.Println("Error al posicionar el archivo Values para escritura:", err)
 		return errors.New("error al posicionar el archivo Values para escritura")
 	}
-
-	bloqueoValuesMutex.Lock()
-	if _, exist := bloqueoValues[pos]; exist {
-		bloqueoValuesMutex.Unlock()
-		return errors.New("bloqueo en la posición " + strconv.FormatInt(int64(pos), 10))
-	}
-
-	bloqueoValues[pos] = key
-	bloqueoValuesMutex.Unlock()
 
 	var buf bytes.Buffer
 
