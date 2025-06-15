@@ -11,7 +11,6 @@ import (
 	"log"
 	"net"
 	"os"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -147,7 +146,6 @@ func searchKey(key string, where int8) (string, error) {
 				return "", errors.New("error al deserializar InfClave")
 			}
 
-			println(string(temp.Clave[:16]) + "   " + strconv.FormatInt(temp.Direccion, 10) + "   " + strconv.FormatInt(int64(temp.Tamaño), 10))
 			claveString := strings.TrimRight(string(temp.Clave[:16]), "\x00")
 			if claveString == key {
 				claveEncontrada = true
@@ -179,8 +177,6 @@ func searchKey(key string, where int8) (string, error) {
 		if !exist {
 			return "", errors.New("clave no encontrada")
 		}
-
-		println("Key: " + key + " Valor: " + value.Valor)
 
 		return value.Valor, nil
 	}
@@ -334,8 +330,6 @@ func writeKeys(key string, posicion int64, tamaño int32) (int64, error) {
 	copy(temp.Clave[:], []byte(key))
 	temp.Direccion = posicion
 	temp.Tamaño = tamaño
-
-	err = binary.Write(&buf, binary.LittleEndian, temp)
 
 	err = binary.Write(&buf, binary.LittleEndian, temp)
 	if err != nil {
@@ -625,7 +619,10 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
-	s := grpc.NewServer()
+	s := grpc.NewServer(
+		grpc.MaxRecvMsgSize(1024*1024*1024),
+		grpc.MaxSendMsgSize(1024*1024*1024),
+	)
 	pb.RegisterBDServer(s, &server{})
 	log.Printf("server listening at %v", lis.Addr())
 	if err := s.Serve(lis); err != nil {

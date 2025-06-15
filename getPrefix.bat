@@ -1,1 +1,1 @@
-python ./client/run_client.py getPrefix --prefix "Yorman"
+run_client.exe getPrefix --prefix "295c3332"
