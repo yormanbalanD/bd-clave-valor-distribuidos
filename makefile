@@ -1,4 +1,4 @@
-build: server.exe, client
+build: server.exe client
 
 server.exe: server/main.go
 	go mod tidy
